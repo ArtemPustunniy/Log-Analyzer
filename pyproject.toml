@@ -12,7 +12,7 @@ python = "^3.11"
 
 [tool.poetry.dev-dependencies]
 black = "^24.8.0"
-isort = "^5.13.2"
+isort = "^5.13.
 ruff = "^0.6.1"
 pytest = "*"
 pytest-cov = "*"
@@ -20,6 +20,7 @@ pytest-deadfixtures = "*"
 pytest-mock = "*"
 pytest-repeat = "*"
 pytest-asyncio = "*"
+requests = "*"
 
 [build-system]
 requires = ["poetry-core"]
