@@ -33,7 +33,8 @@ class NginxLogParser:
         date-time format.
         """
         self.pattern = re.compile(self.LOG_PATTERN)
-        self.date_time_formatter = "%d/%b/%Y:%H:%M:%S %z"
+        self.date_time_formatter = "%d/%B/%Y:%H:%M:%S %z"
+        self.date_time_formatter_full = "%d/%b/%Y:%H:%M:%S %z"
 
     def parse(self, log_line) -> NginxLog:
         """
@@ -80,8 +81,11 @@ class NginxLogParser:
         try:
             time_local = datetime.strptime(time_local_str, self.date_time_formatter)
         except ValueError:
-            self.LOGGER.error("Incorrect format for time_local: %s", time_local_str)
-            raise ValueError(f"Incorrect time format: {time_local_str}")
+            try:
+                time_local = datetime.strptime(time_local_str, self.date_time_formatter_full)
+            except ValueError:
+                self.LOGGER.error("Incorrect format for time_local: %s", time_local_str)
+                raise ValueError(f"Incorrect time format: {time_local_str}")
 
         return NginxLog(
             remote_addr,
