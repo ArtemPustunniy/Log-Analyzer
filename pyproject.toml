@@ -20,6 +20,7 @@ pytest-deadfixtures = "*"
 pytest-mock = "*"
 pytest-repeat = "*"
 pytest-asyncio = "*"
+requests = "*"
 
 [build-system]
 requires = ["poetry-core"]
