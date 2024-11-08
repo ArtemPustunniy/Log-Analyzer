@@ -3,11 +3,6 @@ from src.converters.from_nginx_log_to_markdown_converter import FromNginxLogToMa
 
 
 class MockAnalyzer:
-    """
-    Mock analyzer to simulate the analyzer's methods and return
-    predefined data for testing.
-    """
-
     def get_start_date(self):
         from datetime import datetime
         return datetime(2023, 1, 1)
@@ -56,12 +51,10 @@ class MockAnalyzer:
 
 class TestFromNginxLogToMarkDownConverter(unittest.TestCase):
     def setUp(self):
-        # Создаем экземпляр конвертера и мок-анализатора
         self.converter = FromNginxLogToMarkDownConverter()
         self.analyzer = MockAnalyzer()
 
     def test_convert_output(self):
-        # Тестируем корректность создания Markdown-отчета
         report = self.converter.convert(self.analyzer)
         self.assertIn("#### Общая информация\n", report)
         self.assertIn("|    Начальная дата     |   01.01.2023 |\n", report)
@@ -72,20 +65,17 @@ class TestFromNginxLogToMarkDownConverter(unittest.TestCase):
         self.assertIn("| Количество уникальных IP |        1_200 |\n", report)
         self.assertIn("| Процент ошибок (4xx и 5xx) |       2.75% |\n", report)
 
-        # Проверка запрашиваемых ресурсов
         self.assertIn("#### Запрашиваемые ресурсы\n", report)
         self.assertIn("|  `/home`  |      5_000 |\n", report)
         self.assertIn("|  `/about`  |      3_000 |\n", report)
         self.assertIn("|  `/contact`  |      2_000 |\n", report)
 
-        # Проверка кодов ответа
         self.assertIn("#### Коды ответа\n", report)
         self.assertIn("| 200 | OK |       12_000 |\n", report)
         self.assertIn("| 404 | Not Found |       2_000 |\n", report)
         self.assertIn("| 500 | Internal Server Error |       1_000 |\n", report)
 
     def test_format_number_with_underscores(self):
-        # Тестируем форматирование чисел с подчеркиваниями
         self.assertEqual(self.converter.format_number_with_underscores(1000), "1_000")
         self.assertEqual(self.converter.format_number_with_underscores(1500000), "1_500_000")
 

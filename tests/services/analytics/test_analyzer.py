@@ -7,11 +7,9 @@ from src.models.nginx_log import NginxLog
 
 class TestAnalyzer(unittest.TestCase):
     def setUp(self):
-        # Создаем экземпляр Analyzer для использования в тестах
         self.analyzer = Analyzer()
 
     def test_update_metrics_single_log(self):
-        # Тестируем обновление метрик для одного лога
         log = NginxLog(
             remote_addr="192.168.0.1",
             remote_user="user123",
@@ -34,7 +32,6 @@ class TestAnalyzer(unittest.TestCase):
         self.assertEqual(self.analyzer.get_requested_resources(), {"/index.html": 1})
 
     def test_update_metrics_multiple_logs(self):
-        # Тестируем обновление метрик для нескольких логов
         log1 = NginxLog(
             remote_addr="192.168.0.1",
             remote_user="user123",
@@ -68,10 +65,7 @@ class TestAnalyzer(unittest.TestCase):
         self.assertEqual(self.analyzer.get_status_code_counts(), {200: 1, 404: 1})
         self.assertEqual(self.analyzer.get_requested_resources(), {"/index.html": 1, "/submit": 1})
 
-    from datetime import datetime
-
     def test_calculate_95th_percentile(self):
-        # Тестируем расчет 95-го перцентиля
         sizes = [100, 200, 300, 400, 500, 600]
         for size in sizes:
             log = Mock()
@@ -84,12 +78,10 @@ class TestAnalyzer(unittest.TestCase):
         self.assertEqual(self.analyzer.calculate_95th_percentile(), 500)
 
     def test_extract_resource_from_request(self):
-        # Тестируем извлечение ресурса из строки запроса
         request = "GET /test/resource HTTP/1.1"
         resource = self.analyzer.extract_resource_from_request(request)
         self.assertEqual(resource, "/test/resource")
 
-        # Проверка с некорректной строкой запроса
         request = "INVALID REQUEST FORMAT"
         resource = self.analyzer.extract_resource_from_request(request)
         self.assertEqual(resource, "REQUEST")

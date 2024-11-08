@@ -5,12 +5,10 @@ from src.facades.log_analyzer_facade import LogAnalyzerFacade
 
 class TestLogAnalyzerFacade(unittest.TestCase):
     def setUp(self):
-        # Создаем mock для аргументного парсера и файлового писателя
         self.arguments_parser = Mock()
         self.file_log_writer = Mock()
         self.args = Mock()
 
-        # Устанавливаем значения для тестов
         self.arguments_parser.parse.return_value = {
             "path": "/path/to/log",
             "from": "2023-01-01",
@@ -25,7 +23,6 @@ class TestLogAnalyzerFacade(unittest.TestCase):
     @patch("src.facades.log_analyzer_facade.FileLogWriter", return_value=Mock())
     @patch("src.facades.log_analyzer_facade.LogAnalyzerFacade.LOGGER")
     def test_analyze_logs_with_output_option(self, mock_logger, mock_file_log_writer):
-        # Тестирует запись в файл при наличии output_option
         self.arguments_parser.parse.return_value = {
             "path": "/path/to/log",
             "from": None,
@@ -37,15 +34,12 @@ class TestLogAnalyzerFacade(unittest.TestCase):
         }
         self.facade.analyze_logs()
 
-        # Проверка вызова метода write_logs на mock_file_log_writer
         mock_file_log_writer.return_value.write_logs.assert_called_once()
-        # Проверка, что логгер info не был вызван
         mock_logger.info.assert_not_called()
 
     @patch("src.facades.log_analyzer_facade.FileLogWriter", return_value=Mock())
     @patch("src.facades.log_analyzer_facade.LogAnalyzerFacade.LOGGER")
     def test_analyze_logs_without_output_option(self, mock_logger, mock_file_log_writer):
-        # Тестирует вывод в LOGGER при отсутствии output_option
         self.arguments_parser.parse.return_value["output"] = ""
         self.facade.analyze_logs()
 
@@ -59,7 +53,6 @@ class TestLogAnalyzerFacade(unittest.TestCase):
     @patch("src.facades.log_analyzer_facade.ConverterFactory")
     def test_get_result_analyze(self, mock_converter_factory, mock_log_reader_service, mock_analyzer, mock_paths_parser,
                                 mock_date_parser):
-        # Настройка mock-ов для get_result_analyze
         mock_date_parser.return_value.parse.side_effect = lambda x: x  # Возвращает дату как строку
         mock_paths_parser.return_value.parse.return_value = ["/path/to/log"]
         mock_converter = Mock()
@@ -67,7 +60,7 @@ class TestLogAnalyzerFacade(unittest.TestCase):
         mock_converter_factory.return_value.get_converter.return_value = mock_converter
 
         result = self.facade.get_result_analyze(
-            path_option="/path/to/log",
+            path_option=["/path/to/log"],
             from_option="2023-01-01",
             to_option="2023-12-31",
             format_option="markdown",
@@ -88,7 +81,6 @@ class TestLogAnalyzerFacade(unittest.TestCase):
         mock_converter.convert.assert_called_once_with(mock_analyzer.return_value)
 
     def test_get_result_analyze_missing_path_option(self):
-        # Тест на отсутствие path_option
         result = self.facade.get_result_analyze(
             path_option=None,
             from_option="2023-01-01",
@@ -101,10 +93,9 @@ class TestLogAnalyzerFacade(unittest.TestCase):
 
     @patch("src.facades.log_analyzer_facade.DateParser")
     def test_get_result_analyze_invalid_from_date(self, mock_date_parser):
-        # Тест на некорректный формат from_option
         mock_date_parser.return_value.parse.return_value = None
         result = self.facade.get_result_analyze(
-            path_option="/path/to/log",
+            path_option=["/path/to/log"],
             from_option="invalid-date",
             to_option="2023-12-31",
             format_option="markdown",
@@ -115,10 +106,9 @@ class TestLogAnalyzerFacade(unittest.TestCase):
 
     @patch("src.facades.log_analyzer_facade.DateParser")
     def test_get_result_analyze_invalid_to_date(self, mock_date_parser):
-        # Тест на некорректный формат to_option
         mock_date_parser.return_value.parse.side_effect = lambda x: None if x == "invalid-date" else x
         result = self.facade.get_result_analyze(
-            path_option="/path/to/log",
+            path_option=["/path/to/log"],
             from_option="2023-01-01",
             to_option="invalid-date",
             format_option="markdown",

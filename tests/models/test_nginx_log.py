@@ -5,7 +5,6 @@ from src.models.nginx_log import NginxLog
 
 class TestNginxLog(unittest.TestCase):
     def setUp(self):
-        # Создаем пример NginxLog для использования в тестах
         self.log_entry = NginxLog(
             remote_addr="192.168.0.1",
             remote_user="user123",
@@ -18,7 +17,6 @@ class TestNginxLog(unittest.TestCase):
         )
 
     def test_attributes(self):
-        # Проверяем, что атрибуты NginxLog инициализированы правильно
         self.assertEqual(self.log_entry.remote_addr, "192.168.0.1")
         self.assertEqual(self.log_entry.remote_user, "user123")
         self.assertEqual(self.log_entry.time_local, datetime(2023, 1, 1, 12, 0, 0))
@@ -29,7 +27,6 @@ class TestNginxLog(unittest.TestCase):
         self.assertEqual(self.log_entry.http_user_agent, "Mozilla/5.0")
 
     def test_str_representation(self):
-        # Проверяем, что метод __str__ возвращает ожидаемую строку
         expected_str = (
             "NginxLog{remoteAddr='192.168.0.1', "
             "remoteUser='user123', "

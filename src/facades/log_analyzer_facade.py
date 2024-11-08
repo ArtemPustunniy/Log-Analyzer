@@ -107,6 +107,6 @@ class LogAnalyzerFacade:
         converter_factory = ConverterFactory()
         try:
             converter = converter_factory.get_converter(format_option)
-        except ValueError as e:
-            return str(e)
+        except ValueError:
+            return "Error: no such converter"
         return converter.convert(analyzer)

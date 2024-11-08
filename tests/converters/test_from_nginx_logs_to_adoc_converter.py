@@ -3,11 +3,6 @@ from src.converters.from_nginx_logs_to_adoc_converter import FromNginxLogsToAdoc
 
 
 class MockAnalyzer:
-    """
-    Mock analyzer to simulate the analyzer's methods and return
-    predefined data for testing.
-    """
-
     def get_start_date(self):
         from datetime import datetime
         return datetime(2023, 1, 1)
@@ -56,15 +51,12 @@ class MockAnalyzer:
 
 class TestFromNginxLogsToAdocConverter(unittest.TestCase):
     def setUp(self):
-        # Создаем экземпляр конвертера и мок-анализатора
         self.converter = FromNginxLogsToAdocConverter()
         self.analyzer = MockAnalyzer()
 
     def test_convert_output(self):
-        # Тестируем корректность создания AsciiDoc-отчета
         report = self.converter.convert(self.analyzer)
 
-        # Проверка общей информации
         self.assertIn("= Анализ логов Nginx\n\n", report)
         self.assertIn("| Начальная дата | 01.01.2023\n", report)
         self.assertIn("| Конечная дата | 31.12.2023\n", report)
@@ -74,13 +66,11 @@ class TestFromNginxLogsToAdocConverter(unittest.TestCase):
         self.assertIn("| Количество уникальных IP | 1200\n", report)
         self.assertIn("| Процент ошибок (4xx и 5xx) | 2.75%\n", report)
 
-        # Проверка запрашиваемых ресурсов
         self.assertIn("== Запрашиваемые ресурсы\n\n", report)
         self.assertIn("| /home | 5000\n", report)
         self.assertIn("| /about | 3000\n", report)
         self.assertIn("| /contact | 2000\n", report)
 
-        # Проверка кодов ответа
         self.assertIn("== Коды ответа\n\n", report)
         self.assertIn("| 200 | OK | 12000\n", report)
         self.assertIn("| 404 | Not Found | 2000\n", report)

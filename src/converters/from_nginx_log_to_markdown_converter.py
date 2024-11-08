@@ -72,7 +72,7 @@ class FromNginxLogToMarkDownConverter(Converter):
     @staticmethod
     def format_number_with_underscores(number) -> str:
         """
-        Formats a number with underscores as thousand separators.
+        Formats a number with underscores as 1 thousand separators.
 
         Args:
             number (int): The number to format.
