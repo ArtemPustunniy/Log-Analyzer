@@ -1,81 +1,52 @@
 import unittest
+from tempfile import NamedTemporaryFile
 from src.converters.from_nginx_logs_to_adoc_converter import FromNginxLogsToAdocConverter
+from src.services.readers.file_log_reader import FileLogReader
+from src.services.analytics.analyzer import Analyzer
+import os
 
 
-class MockAnalyzer:
-    def get_start_date(self):
-        from datetime import datetime
-        return datetime(2023, 1, 1)
-
-    def get_end_date(self):
-        from datetime import datetime
-        return datetime(2023, 12, 31)
-
-    def get_count_logs(self):
-        return 15000
-
-    def get_average_size_logs(self):
-        return 512.5
-
-    def calculate_95th_percentile(self):
-        return 800
-
-    def get_unique_ip_count(self):
-        return 1200
-
-    def get_error_rate(self):
-        return 2.75
-
-    def get_requested_resources(self):
-        return {
-            '/home': 5000,
-            '/about': 3000,
-            '/contact': 2000
-        }
-
-    def get_status_code_counts(self):
-        return {
-            200: 12000,
-            404: 2000,
-            500: 1000
-        }
-
-    def get_status_code_name(self, code):
-        names = {
-            200: "OK",
-            404: "Not Found",
-            500: "Internal Server Error"
-        }
-        return names.get(code, "Unknown")
-
-
-class TestFromNginxLogsToAdocConverter(unittest.TestCase):
+class TestFromNginxLogsToAdocConverterWithFile(unittest.TestCase):
     def setUp(self):
+        self.analyzer = Analyzer()
         self.converter = FromNginxLogsToAdocConverter()
-        self.analyzer = MockAnalyzer()
 
-    def test_convert_output(self):
-        report = self.converter.convert(self.analyzer)
+        self.log_lines = """127.0.0.1 - user1 [19/Nov/2023:10:00:00 +0000] "GET /home HTTP/1.1" 200 1234 "-" "Mozilla/5.0"
+127.0.0.1 - user2 [19/Nov/2023:10:05:00 +0000] "GET /about HTTP/1.1" 404 567 "-" "Mozilla/5.0"
+127.0.0.1 - user3 [19/Nov/2023:10:10:00 +0000] "GET /contact HTTP/1.1" 500 890 "-" "Mozilla/5.0"
+"""
 
-        self.assertIn("= Анализ логов Nginx\n\n", report)
-        self.assertIn("| Начальная дата | 01.01.2023\n", report)
-        self.assertIn("| Конечная дата | 31.12.2023\n", report)
-        self.assertIn("| Количество запросов | 15000\n", report)
-        self.assertIn("| Средний размер ответа | 512b\n", report)
-        self.assertIn("| 95p размера ответа | 800b\n", report)
-        self.assertIn("| Количество уникальных IP | 1200\n", report)
-        self.assertIn("| Процент ошибок (4xx и 5xx) | 2.75%\n", report)
+        self.temp_file = NamedTemporaryFile("w+", delete=False)
+        self.temp_file.write(self.log_lines)
+        self.temp_file.close()
 
-        self.assertIn("== Запрашиваемые ресурсы\n\n", report)
-        self.assertIn("| /home | 5000\n", report)
-        self.assertIn("| /about | 3000\n", report)
-        self.assertIn("| /contact | 2000\n", report)
+    def test_convert_logs_to_adoc(self):
+        log_reader = FileLogReader(self.analyzer)
+        log_reader.read_logs(self.temp_file.name, None, None, filter_field=None, filter_value=None)
 
-        self.assertIn("== Коды ответа\n\n", report)
-        self.assertIn("| 200 | OK | 12000\n", report)
-        self.assertIn("| 404 | Not Found | 2000\n", report)
-        self.assertIn("| 500 | Internal Server Error | 1000\n", report)
+        report = self.converter.create_a_report(self.analyzer)
+
+        self.assertIn("= Анализ логов Nginx", report)
+        self.assertIn("== Общая информация", report)
+        self.assertIn("| Начальная дата | 19.11.2023", report)
+        self.assertIn("| Конечная дата | 19.11.2023", report)
+        self.assertIn("| Количество запросов | 3", report)
+        self.assertIn("| Средний размер ответа | 897b", report)
+        self.assertIn("| Процент ошибок (4xx и 5xx) | 66.67%", report)
+
+        self.assertIn("== Запрашиваемые ресурсы", report)
+        self.assertIn("| /home | 1", report)
+        self.assertIn("| /about | 1", report)
+        self.assertIn("| /contact | 1", report)
+
+        self.assertIn("== Коды ответа", report)
+        self.assertIn("| 200 | OK | 1", report)
+        self.assertIn("| 404 | Not Found | 1", report)
+        self.assertIn("| 500 | Internal Server Error | 1", report)
+
+    def tearDown(self):
+        os.remove(self.temp_file.name)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

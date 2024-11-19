@@ -3,8 +3,11 @@ import requests
 from datetime import datetime
 
 from src.parsers.nginx_log_parser import NginxLogParser
+from src.services.analytics.analyzer_intrerface import IAnalyzer
 from src.services.analytics.log_filter import LogFilter
 from src.services.readers.log_reader import LogReader
+
+LOGGER = logging.getLogger("NetworkLogReader")
 
 
 class NetworkLogReader(LogReader):
@@ -15,9 +18,7 @@ class NetworkLogReader(LogReader):
     the provided analyzer with relevant metrics. If a network error occurs, it logs an error.
     """
 
-    LOGGER = logging.getLogger("NetworkLogReader")
-
-    def __init__(self, analyzer):
+    def __init__(self, analyzer: IAnalyzer):
         """
         Initializes the NetworkLogReader with a provided analyzer.
 
@@ -57,4 +58,4 @@ class NetworkLogReader(LogReader):
                     self.analyzer.update_metrics(nginx_log)
 
         except requests.RequestException:
-            self.LOGGER.error(f"Error during network connection to URL: {file_path}", exc_info=True)
+            LOGGER.error(f"Error during network connection to URL: {file_path}", exc_info=True)

@@ -13,7 +13,7 @@ class LogReader(ABC):
     """
 
     @abstractmethod
-    def read_logs(self, file_path, from_time: datetime, to_time: datetime, filter_field: str, filter_value: str):
+    def read_logs(self, file_path: str, from_time: datetime, to_time: datetime, filter_field: str, filter_value: str):
         """
         Abstract method for reading and processing log entries.
 

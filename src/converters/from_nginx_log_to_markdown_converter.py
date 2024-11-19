@@ -1,7 +1,8 @@
-from src.converters.converter import Converter
+from src.converters.converter import IConverter
+from src.services.analytics.analyzer_intrerface import IAnalyzer
 
 
-class FromNginxLogToMarkDownConverter(Converter):
+class FromNginxLogToMarkDownConverter(IConverter):
     """
     Converter class to generate a Markdown report from NGINX log data.
 
@@ -10,7 +11,7 @@ class FromNginxLogToMarkDownConverter(Converter):
     report, including general metrics, requested resources, and response codes.
     """
 
-    def convert(self, analyzer) -> str:
+    def create_a_report(self, analyzer: IAnalyzer) -> str:
         """
         Converts analyzed NGINX log data to a Markdown report.
 
@@ -70,7 +71,7 @@ class FromNginxLogToMarkDownConverter(Converter):
         return "".join(builder)
 
     @staticmethod
-    def format_number_with_underscores(number) -> str:
+    def format_number_with_underscores(number: int) -> str:
         """
         Formats a number with underscores as 1 thousand separators.
 

@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
 
+from src.services.analytics.analyzer_intrerface import IAnalyzer
 
-class Converter(ABC):
+
+class IConverter(ABC):
     """
     Abstract base class for converters.
 
@@ -12,14 +14,12 @@ class Converter(ABC):
     """
 
     @abstractmethod
-    def convert(self, analyzer):
+    def create_a_report(self, analyzer: IAnalyzer):
         """
         Abstract method for data conversion.
 
         This method must be implemented in each subclass of `Converter`.
         It accepts an analyzer object and performs a conversion unique to the subclass.
 
-        Args:
-            analyzer: An object representing the analyzer whose data will be converted.
         """
         pass

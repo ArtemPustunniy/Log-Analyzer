@@ -1,6 +1,8 @@
 import logging
 from pathlib import Path
 
+LOGGER = logging.getLogger("FileLogWriter")
+
 
 class FileLogWriter:
     """
@@ -10,8 +12,6 @@ class FileLogWriter:
     results) to a specified file. If a file error occurs during writing, an error
     message is logged.
     """
-
-    LOGGER = logging.getLogger("FileLogWriter")
 
     def write_logs(self, file_name: str, content: str):
         """
@@ -30,4 +30,4 @@ class FileLogWriter:
             with path.open("w", encoding="utf-8") as writer:
                 writer.write(content)
         except IOError:
-            self.LOGGER.error(f"Error during writing a file: {file_name}", exc_info=True)
+            LOGGER.error(f"Error during writing a file: {file_name}", exc_info=True)

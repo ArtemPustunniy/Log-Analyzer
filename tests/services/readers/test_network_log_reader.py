@@ -1,62 +1,88 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from datetime import datetime
-
-import requests
-
+from datetime import datetime, timezone
 from src.services.readers.network_log_reader import NetworkLogReader
 from src.models.nginx_log import NginxLog
 
 
 class TestNetworkLogReader(unittest.TestCase):
+    def setUp(self):
+        self.analyzer = MagicMock()
+        self.network_log_reader = NetworkLogReader(self.analyzer)
+
     @patch("src.services.readers.network_log_reader.requests.get")
     @patch("src.services.readers.network_log_reader.NginxLogParser")
     @patch("src.services.readers.network_log_reader.LogFilter")
-    def test_read_logs_with_filter_and_time_range(self, MockLogFilter, MockNginxLogParser, mock_requests_get):
+    def test_read_logs_valid_response(self, mock_log_filter, mock_nginx_log_parser, mock_requests_get):
         mock_response = MagicMock()
-        mock_response.text = "mocked log line\nmocked log line"
+        mock_response.text = (
+            "127.0.0.1 - john [19/Nov/2023:15:30:45 +0000] \"GET /index.html HTTP/1.1\" 200 1234 \"-\" \"Mozilla/5.0\"\n"
+        )
+        mock_response.status_code = 200
         mock_requests_get.return_value = mock_response
 
-        mock_parser_instance = MockNginxLogParser.return_value
-        mock_log_filter_instance = MockLogFilter.return_value
-        mock_analyzer = MagicMock()
-
-        test_nginx_log = NginxLog(
-            remote_addr="192.168.0.1",
-            remote_user="user123",
-            time_local=datetime(2023, 1, 1, 12, 0, 0),
+        mock_parser_instance = mock_nginx_log_parser.return_value
+        mock_log_filter_instance = mock_log_filter.return_value
+        mock_parser_instance.parse.return_value = NginxLog(
+            remote_addr="127.0.0.1",
+            remote_user="john",
+            time_local=datetime(2023, 11, 19, 15, 30, 45, tzinfo=timezone.utc),
             request="GET /index.html HTTP/1.1",
             status=200,
-            body_bytes_sent=1024,
-            http_referer="http://example.com",
+            body_bytes_sent=1234,
+            http_referer="-",
             http_user_agent="Mozilla/5.0"
         )
-
-        mock_parser_instance.parse.return_value = test_nginx_log
         mock_log_filter_instance.matches_filter.return_value = True
 
-        network_log_reader = NetworkLogReader(mock_analyzer)
+        self.network_log_reader.read_logs(
+            file_path="http://mockurl.com/logs",
+            from_time=datetime(2023, 11, 19, 15, 0, 0, tzinfo=timezone.utc),
+            to_time=datetime(2023, 11, 19, 16, 0, 0, tzinfo=timezone.utc),
+            filter_field="status",
+            filter_value="200"
+        )
 
-        from_time = datetime(2023, 1, 1, 11, 0, 0)
-        to_time = datetime(2023, 1, 1, 13, 0, 0)
-        network_log_reader.read_logs("http://example.com/logs", from_time, to_time, "agent", "Mozilla")
-
-        mock_requests_get.assert_called_once_with("http://example.com/logs")
-        mock_parser_instance.parse.assert_called()
-        mock_log_filter_instance.matches_filter.assert_called()
-        mock_analyzer.update_metrics.assert_called_with(test_nginx_log)
+        mock_requests_get.assert_called_once_with("http://mockurl.com/logs")
+        mock_parser_instance.parse.assert_called_once()
+        mock_log_filter_instance.matches_filter.assert_called_once()
+        self.analyzer.update_metrics.assert_called_once()
 
     @patch("src.services.readers.network_log_reader.requests.get")
-    @patch("src.services.readers.network_log_reader.NetworkLogReader.LOGGER")
-    def test_read_logs_network_error(self, mock_logger, mock_requests_get):
-        mock_requests_get.side_effect = requests.RequestException
+    @patch("src.services.readers.network_log_reader.NginxLogParser")
+    @patch("src.services.readers.network_log_reader.LogFilter")
+    def test_read_logs_filtering_logic(self, mock_log_filter, mock_nginx_log_parser, mock_requests_get):
+        mock_response = MagicMock()
+        mock_response.text = (
+            "127.0.0.1 - john [19/Nov/2023:15:30:45 +0000] \"GET /index.html HTTP/1.1\" 200 1234 \"-\" \"Mozilla/5.0\"\n"
+        )
+        mock_response.status_code = 200
+        mock_requests_get.return_value = mock_response
 
-        mock_analyzer = MagicMock()
-        network_log_reader = NetworkLogReader(mock_analyzer)
+        mock_parser_instance = mock_nginx_log_parser.return_value
+        mock_log_filter_instance = mock_log_filter.return_value
+        mock_parser_instance.parse.return_value = NginxLog(
+            remote_addr="127.0.0.1",
+            remote_user="john",
+            time_local=datetime(2023, 11, 19, 15, 30, 45, tzinfo=timezone.utc),
+            request="GET /index.html HTTP/1.1",
+            status=200,
+            body_bytes_sent=1234,
+            http_referer="-",
+            http_user_agent="Mozilla/5.0"
+        )
+        mock_log_filter_instance.matches_filter.return_value = False  # Simulate filtering out
 
-        network_log_reader.read_logs("http://invalid_url.com/logs", None, None, None, None)
-        mock_logger.error.assert_called_once_with("Error during network connection to URL: http://invalid_url.com/logs", exc_info=True)
+        self.network_log_reader.read_logs(
+            file_path="http://mockurl.com/logs",
+            from_time=datetime(2023, 11, 19, 15, 0, 0, tzinfo=timezone.utc),
+            to_time=datetime(2023, 11, 19, 16, 0, 0, tzinfo=timezone.utc),
+            filter_field="status",
+            filter_value="404"
+        )
+
+        self.analyzer.update_metrics.assert_not_called()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

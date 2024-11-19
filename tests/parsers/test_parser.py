@@ -1,8 +1,8 @@
 import unittest
-from src.parsers.parser import Parser
+from src.parsers.parser import IParser
 
 
-class TestParserImplementation(Parser):
+class TestParserImplementation(IParser):
     def parse(self, input_data):
         return f"Parsed data: {input_data}"
 
@@ -15,7 +15,7 @@ class TestParser(unittest.TestCase):
 
     def test_abstract_class_cannot_be_instantiated(self):
         with self.assertRaises(TypeError):
-            Parser()
+            IParser()
 
 
 if __name__ == '__main__':

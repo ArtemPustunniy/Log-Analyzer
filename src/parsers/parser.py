@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 
-class Parser(ABC):
+class IParser(ABC):
     """
     Abstract base class for parsers.
 
@@ -11,7 +11,7 @@ class Parser(ABC):
     """
 
     @abstractmethod
-    def parse(self, input_data):
+    def parse(self, input_data: str):
         """
         Abstract method for parsing input data.
 

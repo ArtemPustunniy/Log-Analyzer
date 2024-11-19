@@ -1,14 +1,13 @@
+from http import HTTPStatus
 from collections import defaultdict
 from datetime import datetime
 from typing import List, Dict, Set
 
-from src.models.http_status_code import HttpStatusCode
-
-MIN_ERROR_STATUS_CODE = 400
-MAX_ERROR_STATUS_CODE = 600
+from src.models.nginx_log import NginxLog
+from src.services.analytics.analyzer_intrerface import IAnalyzer
 
 
-class Analyzer:
+class Analyzer(IAnalyzer):
     """
     Class for analyzing log data and calculating various metrics.
 
@@ -33,7 +32,7 @@ class Analyzer:
         self.start_time = None
         self.end_time = None
 
-    def update_metrics(self, log) -> None:
+    def update_metrics(self, log: NginxLog) -> None:
         """
         Updates metrics based on a single log entry.
 
@@ -56,7 +55,7 @@ class Analyzer:
 
         self.unique_ips.add(log.remote_addr)
 
-        if MIN_ERROR_STATUS_CODE <= status_code < MAX_ERROR_STATUS_CODE:
+        if HTTPStatus(status_code).is_client_error or HTTPStatus(status_code).is_server_error:
             self.error_count += 1
 
         log_time = log.time_local
@@ -65,7 +64,7 @@ class Analyzer:
         if self.end_time is None or log_time > self.end_time:
             self.end_time = log_time
 
-    def extract_resource_from_request(self, request) -> str:
+    def extract_resource_from_request(self, request: str) -> str:
         """
         Extracts the resource path from the request string.
 
@@ -163,7 +162,7 @@ class Analyzer:
         """
         return dict(self.count_status_codes)
 
-    def get_status_code_name(self, status_code) -> str:
+    def get_status_code_name(self, status_code: int) -> str:
         """
         Retrieves the message associated with a specific HTTP status code.
 
@@ -173,4 +172,4 @@ class Analyzer:
         Returns:
             str: The message for the status code, or "Unknown Status Code" if not found.
         """
-        return HttpStatusCode.get_message_by_code(status_code)
+        return HTTPStatus(status_code).phrase

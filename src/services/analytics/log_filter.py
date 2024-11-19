@@ -1,4 +1,5 @@
 from src.models.filter_field import FilterField
+from src.models.nginx_log import NginxLog
 
 
 class LogFilter:
@@ -9,7 +10,7 @@ class LogFilter:
     specific filter criterion, such as user agent, request, or status code.
     """
 
-    def matches_filter(self, log, filter_field, filter_value) -> bool:
+    def matches_filter(self, log: NginxLog, filter_field: str, filter_value: str) -> bool:
         """
         Checks if a log entry matches the given filter field and value.
 

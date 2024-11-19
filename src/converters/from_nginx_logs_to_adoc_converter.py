@@ -1,7 +1,8 @@
-from src.converters.converter import Converter
+from src.converters.converter import IConverter
+from src.services.analytics.analyzer_intrerface import IAnalyzer
 
 
-class FromNginxLogsToAdocConverter(Converter):
+class FromNginxLogsToAdocConverter(IConverter):
     """
     Converter class to generate an AsciiDoc report from NGINX log data.
 
@@ -10,7 +11,7 @@ class FromNginxLogsToAdocConverter(Converter):
     report, including general metrics, requested resources, and response codes.
     """
 
-    def convert(self, analyzer) -> str:
+    def create_a_report(self, analyzer: IAnalyzer) -> str:
         """
         Converts analyzed NGINX log data to an AsciiDoc report.
 
@@ -40,7 +41,6 @@ class FromNginxLogsToAdocConverter(Converter):
         percentile_95 = analyzer.calculate_95th_percentile()
         builder.append(f"| 95p размера ответа | {percentile_95:.0f}b\n")
 
-        # Additional metrics
         builder.append(f"| Количество уникальных IP | {analyzer.get_unique_ip_count()}\n")
         builder.append(f"| Процент ошибок (4xx и 5xx) | {analyzer.get_error_rate():.2f}%\n")
 

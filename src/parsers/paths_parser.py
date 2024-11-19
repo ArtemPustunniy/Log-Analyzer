@@ -1,10 +1,13 @@
 import logging
 import glob
 import os
-from typing import List
+
+from src.parsers.parser import IParser
+
+LOGGER = logging.getLogger("PathsParser")
 
 
-class PathsParser:
+class PathsParser(IParser):
     """
     Class for parsing file paths or URLs from input options.
 
@@ -13,9 +16,7 @@ class PathsParser:
     file paths and checks for file existence.
     """
 
-    LOGGER = logging.getLogger("PathsParser")
-
-    def parse(self, path_option: list) -> List[str]:
+    def parse(self, path_option: list) -> list[str]:
         """
         Parses input paths and retrieves valid file paths or URLs.
 
@@ -42,5 +43,5 @@ class PathsParser:
                         if os.path.isfile(path):
                             paths.append(path)
                 except OSError:
-                    self.LOGGER.error("Error: Unable to read files from path pattern.")
+                    LOGGER.error("Error: Unable to read files from path pattern.")
         return paths

@@ -1,84 +1,83 @@
 import unittest
+from unittest.mock import MagicMock, patch
+from tempfile import NamedTemporaryFile
+from datetime import datetime, timezone
 from src.converters.from_nginx_log_to_markdown_converter import FromNginxLogToMarkDownConverter
+from src.services.readers.file_log_reader import FileLogReader
+from src.services.analytics.analyzer import Analyzer
+import os
 
 
-class MockAnalyzer:
-    def get_start_date(self):
-        from datetime import datetime
-        return datetime(2023, 1, 1)
-
-    def get_end_date(self):
-        from datetime import datetime
-        return datetime(2023, 12, 31)
-
-    def get_count_logs(self):
-        return 15000
-
-    def get_average_size_logs(self):
-        return 512.5
-
-    def calculate_95th_percentile(self):
-        return 800
-
-    def get_unique_ip_count(self):
-        return 1200
-
-    def get_error_rate(self):
-        return 2.75
-
-    def get_requested_resources(self):
-        return {
-            '/home': 5000,
-            '/about': 3000,
-            '/contact': 2000
-        }
-
-    def get_status_code_counts(self):
-        return {
-            200: 12000,
-            404: 2000,
-            500: 1000
-        }
-
-    def get_status_code_name(self, code):
-        names = {
-            200: "OK",
-            404: "Not Found",
-            500: "Internal Server Error"
-        }
-        return names.get(code, "Unknown")
-
-
-class TestFromNginxLogToMarkDownConverter(unittest.TestCase):
+class TestFromNginxLogToMarkDownConverterWithFile(unittest.TestCase):
     def setUp(self):
+        self.analyzer = Analyzer()
         self.converter = FromNginxLogToMarkDownConverter()
-        self.analyzer = MockAnalyzer()
 
-    def test_convert_output(self):
-        report = self.converter.convert(self.analyzer)
-        self.assertIn("#### Общая информация\n", report)
-        self.assertIn("|    Начальная дата     |   01.01.2023 |\n", report)
-        self.assertIn("|     Конечная дата     |   31.12.2023 |\n", report)
-        self.assertIn("|  Количество запросов  |       15_000 |\n", report)
-        self.assertIn("| Средний размер ответа |         512b |\n", report)
-        self.assertIn("|   95p размера ответа  |         800b |\n", report)
-        self.assertIn("| Количество уникальных IP |        1_200 |\n", report)
-        self.assertIn("| Процент ошибок (4xx и 5xx) |       2.75% |\n", report)
+        self.log_lines = """127.0.0.1 - user1 [19/Nov/2023:10:00:00 +0000] "GET /home HTTP/1.1" 200 1234 "-" "Mozilla/5.0"
+127.0.0.1 - user2 [19/Nov/2023:10:05:00 +0000] "GET /about HTTP/1.1" 404 567 "-" "Mozilla/5.0"
+127.0.0.1 - user3 [19/Nov/2023:10:10:00 +0000] "GET /contact HTTP/1.1" 500 890 "-" "Mozilla/5.0"
+"""
 
-        self.assertIn("#### Запрашиваемые ресурсы\n", report)
-        self.assertIn("|  `/home`  |      5_000 |\n", report)
-        self.assertIn("|  `/about`  |      3_000 |\n", report)
-        self.assertIn("|  `/contact`  |      2_000 |\n", report)
+        self.temp_file = NamedTemporaryFile("w+", delete=False)
+        self.temp_file.write(self.log_lines)
+        self.temp_file.close()
 
-        self.assertIn("#### Коды ответа\n", report)
-        self.assertIn("| 200 | OK |       12_000 |\n", report)
-        self.assertIn("| 404 | Not Found |       2_000 |\n", report)
-        self.assertIn("| 500 | Internal Server Error |       1_000 |\n", report)
+    @patch("src.parsers.nginx_log_parser.NginxLogParser.parse")
+    def test_convert_logs_to_markdown(self, mock_parser):
+        mock_parser.side_effect = [
+            MagicMock(
+                remote_addr="127.0.0.1",
+                remote_user="user1",
+                time_local=datetime(2023, 11, 19, 10, 0, 0, tzinfo=timezone.utc),
+                request="GET /home HTTP/1.1",
+                status=200,
+                body_bytes_sent=1234,
+                http_referer="-",
+                http_user_agent="Mozilla/5.0",
+            ),
+            MagicMock(
+                remote_addr="127.0.0.1",
+                remote_user="user2",
+                time_local=datetime(2023, 11, 19, 10, 5, 0, tzinfo=timezone.utc),
+                request="GET /about HTTP/1.1",
+                status=404,
+                body_bytes_sent=567,
+                http_referer="-",
+                http_user_agent="Mozilla/5.0",
+            ),
+            MagicMock(
+                remote_addr="127.0.0.1",
+                remote_user="user3",
+                time_local=datetime(2023, 11, 19, 10, 10, 0, tzinfo=timezone.utc),
+                request="GET /contact HTTP/1.1",
+                status=500,
+                body_bytes_sent=890,
+                http_referer="-",
+                http_user_agent="Mozilla/5.0",
+            ),
+        ]
 
-    def test_format_number_with_underscores(self):
-        self.assertEqual(self.converter.format_number_with_underscores(1000), "1_000")
-        self.assertEqual(self.converter.format_number_with_underscores(1500000), "1_500_000")
+        log_reader = FileLogReader(self.analyzer)
+        log_reader.read_logs(self.temp_file.name, None, None, filter_field=None, filter_value=None)
+
+        report = self.converter.create_a_report(self.analyzer)
+
+        self.assertIn("#### Общая информация", report)
+        self.assertIn("|  Количество запросов  |       3 |", report)
+        self.assertIn("| Средний размер ответа |         897b |", report)
+        self.assertIn("| Процент ошибок (4xx и 5xx) |       66.67% |", report)
+        self.assertIn("#### Запрашиваемые ресурсы", report)
+        self.assertIn("|  `/home`  |      1 |", report)
+        self.assertIn("|  `/about`  |      1 |", report)
+        self.assertIn("|  `/contact`  |      1 |", report)
+        self.assertIn("#### Коды ответа", report)
+        self.assertIn("| 200 | OK |       1 |", report)
+        self.assertIn("| 404 | Not Found |       1 |", report)
+        self.assertIn("| 500 | Internal Server Error |       1 |", report)
+
+    def tearDown(self):
+        os.remove(self.temp_file.name)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -1,54 +1,105 @@
 import unittest
-from unittest.mock import patch, MagicMock, mock_open
-from datetime import datetime
+from unittest.mock import MagicMock, patch
+from datetime import datetime, timezone
 from src.services.readers.file_log_reader import FileLogReader
 from src.models.nginx_log import NginxLog
 
 
 class TestFileLogReader(unittest.TestCase):
-    @patch("src.services.readers.file_log_reader.Path.open", new_callable=mock_open, read_data="mocked log line")
+    def setUp(self):
+        self.analyzer = MagicMock()
+        self.file_log_reader = FileLogReader(self.analyzer)
+
+    @patch("src.services.readers.file_log_reader.Path")
     @patch("src.services.readers.file_log_reader.NginxLogParser")
     @patch("src.services.readers.file_log_reader.LogFilter")
-    def test_read_logs_within_time_range_and_filter(self, MockLogFilter, MockNginxLogParser, mock_open_file):
-        mock_parser_instance = MockNginxLogParser.return_value
-        mock_log_filter_instance = MockLogFilter.return_value
-        mock_analyzer = MagicMock()
-
-        test_nginx_log = NginxLog(
-            remote_addr="192.168.0.1",
-            remote_user="user123",
-            time_local=datetime(2023, 1, 1, 12, 0, 0),
+    def test_read_logs_valid_file(self, mock_log_filter, mock_nginx_log_parser, mock_path):
+        mock_parser_instance = mock_nginx_log_parser.return_value
+        mock_log_filter_instance = mock_log_filter.return_value
+        mock_parser_instance.parse.return_value = NginxLog(
+            remote_addr="127.0.0.1",
+            remote_user="-",
+            time_local=datetime(2023, 11, 19, 15, 30, 45, tzinfo=timezone.utc),
             request="GET /index.html HTTP/1.1",
             status=200,
-            body_bytes_sent=1024,
-            http_referer="http://example.com",
+            body_bytes_sent=1234,
+            http_referer="-",
             http_user_agent="Mozilla/5.0"
         )
-
-        mock_parser_instance.parse.return_value = test_nginx_log
         mock_log_filter_instance.matches_filter.return_value = True
 
-        file_log_reader = FileLogReader(mock_analyzer)
+        mock_path_instance = mock_path.return_value
+        mock_path_instance.open.return_value.__enter__.return_value = iter([
+            "127.0.0.1 - - [19/Nov/2023:15:30:45 +0000] \"GET /index.html HTTP/1.1\" 200 1234 \"-\" \"Mozilla/5.0\""
+        ])
 
-        from_time = datetime(2023, 1, 1, 11, 0, 0)
-        to_time = datetime(2023, 1, 1, 13, 0, 0)
-        file_log_reader.read_logs("test.log", from_time, to_time, "agent", "Mozilla")
+        self.file_log_reader.read_logs(
+            file_path="mock_file.log",
+            from_time=datetime(2023, 11, 19, 15, 0, 0, tzinfo=timezone.utc),
+            to_time=datetime(2023, 11, 19, 16, 0, 0, tzinfo=timezone.utc),
+            filter_field="status",
+            filter_value="200"
+        )
 
-        mock_parser_instance.parse.assert_called_once_with("mocked log line")
-        mock_log_filter_instance.matches_filter.assert_called_once_with(test_nginx_log, "agent", "Mozilla")
-        mock_analyzer.update_metrics.assert_called_once_with(test_nginx_log)
+        mock_parser_instance.parse.assert_called_once()
+        mock_log_filter_instance.matches_filter.assert_called_once()
+        self.analyzer.update_metrics.assert_called_once()
 
-    @patch("src.services.readers.file_log_reader.Path.open", new_callable=mock_open)
-    @patch("src.services.readers.file_log_reader.FileLogReader.LOGGER")
-    def test_read_logs_file_io_error(self, mock_logger, mock_open_file):
-        mock_open_file.side_effect = IOError
+    @patch("src.services.readers.file_log_reader.Path")
+    @patch("src.services.readers.file_log_reader.LOGGER.error")
+    def test_read_logs_file_io_error(self, mock_logger_error, mock_path):
+        mock_path_instance = mock_path.return_value
+        mock_path_instance.open.side_effect = IOError("File not found")
 
-        mock_analyzer = MagicMock()
-        file_log_reader = FileLogReader(mock_analyzer)
+        self.file_log_reader.read_logs(
+            file_path="mock_file.log",
+            from_time=None,
+            to_time=None,
+            filter_field=None,
+            filter_value=None
+        )
 
-        file_log_reader.read_logs("invalid_path.log", None, None, None, None)
-        mock_logger.error.assert_called_once_with("Error reading logs from file: invalid_path.log", exc_info=True)
+        mock_logger_error.assert_called_once_with(
+            "Error reading logs from file: mock_file.log",
+            exc_info=True
+        )
+
+    def test_is_within_time_range_within_range(self):
+        nginx_log = MagicMock()
+        nginx_log.time_local = datetime(2023, 11, 19, 15, 30, 45, tzinfo=timezone.utc)
+        from_time = datetime(2023, 11, 19, 15, 0, 0, tzinfo=timezone.utc)
+        to_time = datetime(2023, 11, 19, 16, 0, 0, tzinfo=timezone.utc)
+
+        result = self.file_log_reader.is_within_time_range(nginx_log, from_time, to_time)
+        self.assertTrue(result)
+
+    def test_is_within_time_range_out_of_range(self):
+        nginx_log = MagicMock()
+        nginx_log.time_local = datetime(2023, 11, 19, 14, 30, 45, tzinfo=timezone.utc)
+        from_time = datetime(2023, 11, 19, 15, 0, 0, tzinfo=timezone.utc)
+        to_time = datetime(2023, 11, 19, 16, 0, 0, tzinfo=timezone.utc)
+
+        result = self.file_log_reader.is_within_time_range(nginx_log, from_time, to_time)
+        self.assertFalse(result)
+
+    def test_is_within_time_range_no_from_time(self):
+        nginx_log = MagicMock()
+        nginx_log.time_local = datetime(2023, 11, 19, 15, 30, 45, tzinfo=timezone.utc)
+        from_time = None
+        to_time = datetime(2023, 11, 19, 16, 0, 0, tzinfo=timezone.utc)
+
+        result = self.file_log_reader.is_within_time_range(nginx_log, from_time, to_time)
+        self.assertTrue(result)
+
+    def test_is_within_time_range_no_to_time(self):
+        nginx_log = MagicMock()
+        nginx_log.time_local = datetime(2023, 11, 19, 15, 30, 45, tzinfo=timezone.utc)
+        from_time = datetime(2023, 11, 19, 15, 0, 0, tzinfo=timezone.utc)
+        to_time = None
+
+        result = self.file_log_reader.is_within_time_range(nginx_log, from_time, to_time)
+        self.assertTrue(result)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

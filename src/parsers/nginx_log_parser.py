@@ -1,11 +1,14 @@
 import logging
 import re
-from datetime import datetime
 
 from src.models.nginx_log import NginxLog
+from src.parsers.arguments_parser import DateParser
+from src.parsers.parser import IParser
+
+LOGGER = logging.getLogger("NginxLogParser")
 
 
-class NginxLogParser:
+class NginxLogParser(IParser):
     """
     Class for parsing NGINX log lines into NginxLog objects.
 
@@ -15,7 +18,6 @@ class NginxLogParser:
     messages when formats are incorrect.
     """
 
-    LOGGER = logging.getLogger("NginxLogParser")
     LOG_PATTERN = (
         r"(?P<remoteAddr>\S+) "
         r"- (?P<remoteUser>\S+) "
@@ -36,7 +38,7 @@ class NginxLogParser:
         self.date_time_formatter = "%d/%B/%Y:%H:%M:%S %z"
         self.date_time_formatter_full = "%d/%b/%Y:%H:%M:%S %z"
 
-    def parse(self, log_line) -> NginxLog:
+    def parse(self, log_line: str) -> NginxLog:
         """
         Parses a single line from an NGINX log file into an NginxLog object.
 
@@ -56,7 +58,7 @@ class NginxLogParser:
         """
         matcher = self.pattern.match(log_line)
         if not matcher:
-            self.LOGGER.error("Incorrect format of log string")
+            LOGGER.error("Incorrect format of log string")
             raise ValueError("Incorrect format of log string")
 
         remote_addr = matcher.group("remoteAddr")
@@ -69,23 +71,20 @@ class NginxLogParser:
         try:
             status = int(matcher.group("status"))
         except ValueError:
-            self.LOGGER.error("Incorrect format for status: %s", matcher.group("status"))
+            LOGGER.error("Incorrect format for status: %s", matcher.group("status"))
             raise ValueError(f"Incorrect format for status: {matcher.group('status')}")
 
         try:
             body_bytes_sent = int(matcher.group("bodyBytesSent"))
         except ValueError:
-            self.LOGGER.error("Incorrect format for body_bytes_sent: %s", matcher.group("bodyBytesSent"))
+            LOGGER.error("Incorrect format for body_bytes_sent: %s", matcher.group("bodyBytesSent"))
             raise ValueError(f"Incorrect format for body_bytes_sent: {matcher.group('bodyBytesSent')}")
 
         try:
-            time_local = datetime.strptime(time_local_str, self.date_time_formatter)
+            time_local = DateParser.check_time_pattern(time_local_str)
         except ValueError:
-            try:
-                time_local = datetime.strptime(time_local_str, self.date_time_formatter_full)
-            except ValueError:
-                self.LOGGER.error("Incorrect format for time_local: %s", time_local_str)
-                raise ValueError(f"Incorrect time format: {time_local_str}")
+            LOGGER.error("Failed to parse time_local: %s", time_local_str)
+            raise ValueError(f"Incorrect time format: {time_local_str}")
 
         return NginxLog(
             remote_addr,

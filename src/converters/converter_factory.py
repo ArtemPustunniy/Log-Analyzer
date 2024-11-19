@@ -1,4 +1,4 @@
-from src.converters.converter import Converter
+from src.converters.converter import IConverter
 from src.converters.from_nginx_log_to_markdown_converter import FromNginxLogToMarkDownConverter
 from src.converters.from_nginx_logs_to_adoc_converter import FromNginxLogsToAdocConverter
 from src.models.format_option import FormatOption
@@ -13,7 +13,7 @@ class ConverterFactory:
     If the format is unsupported, it raises a `ValueError`.
     """
 
-    def get_converter(self, format_option) -> Converter:
+    def get_converter(self, format_option: str) -> IConverter:
         """
         Returns a converter instance based on the format option.
 

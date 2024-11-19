@@ -7,6 +7,8 @@ from src.services.analytics.analyzer import Analyzer
 from src.services.readers.log_reader_service import LogReaderService
 from src.services.writers.file_log_writer import FileLogWriter
 
+LOGGER = logging.getLogger("FileLogReader")
+
 
 class LogAnalyzerFacade:
     """
@@ -17,8 +19,6 @@ class LogAnalyzerFacade:
     user-specified options. It manages the components necessary for a complete log
     analysis, outputting the results either to a file or the console.
     """
-
-    LOGGER = logging.getLogger("FileLogReader")
 
     def __init__(self, arguments_parser, args):
         """
@@ -52,12 +52,12 @@ class LogAnalyzerFacade:
 
         result = self.get_result_analyze(path_option, from_option, to_option, format_option, filter_field, filter_value)
         if not output_option:
-            self.LOGGER.info(result)
+            LOGGER.info(result)
         else:
             file_log_writer = FileLogWriter()
             file_log_writer.write_logs(output_option, result)
 
-    def get_result_analyze(self, path_option, from_option, to_option, format_option, filter_field, filter_value) -> str:
+    def get_result_analyze(self, path_option: list, from_option: str, to_option: str, format_option: str, filter_field: str, filter_value: str) -> str:
         """
         Retrieves and analyzes log data based on provided options.
 
@@ -75,18 +75,11 @@ class LogAnalyzerFacade:
         Returns:
             str: The analyzed and formatted log data as a string, or an error message.
         """
-        if not path_option:
-            return "Error: --path option is required."
-
         date_parser = DateParser()
 
         from_date_time = date_parser.parse(from_option)
-        if from_option and from_date_time is None:
-            return "Error: Invalid date format for --from option. Expected format is yyyy-MM-dd"
 
         to_date_time = date_parser.parse(to_option)
-        if to_option and to_date_time is None:
-            return "Error: Invalid date format for --to option. Expected format is yyyy-MM-dd"
 
         paths_parser = PathsParser()
         paths = paths_parser.parse(path_option)
@@ -109,4 +102,4 @@ class LogAnalyzerFacade:
             converter = converter_factory.get_converter(format_option)
         except ValueError:
             return "Error: no such converter"
-        return converter.convert(analyzer)
+        return converter.create_a_report(analyzer)

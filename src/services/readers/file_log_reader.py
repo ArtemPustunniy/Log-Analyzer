@@ -1,10 +1,13 @@
-import logging
 from datetime import datetime
 from pathlib import Path
 
+from src.models.nginx_log import NginxLog
 from src.parsers.nginx_log_parser import NginxLogParser
 from src.services.analytics.log_filter import LogFilter
 from src.services.readers.log_reader import LogReader
+import logging
+
+LOGGER = logging.getLogger("FileLogReader")
 
 
 class FileLogReader(LogReader):
@@ -16,8 +19,6 @@ class FileLogReader(LogReader):
     metrics.
     """
 
-    LOGGER = logging.getLogger("FileLogReader")
-
     def __init__(self, analyzer):
         """
         Initializes the FileLogReader with a provided analyzer.
@@ -28,7 +29,7 @@ class FileLogReader(LogReader):
         """
         self.analyzer = analyzer
 
-    def read_logs(self, file_path, from_time: datetime, to_time: datetime, filter_field: str, filter_value: str) -> None:
+    def read_logs(self, file_path: str, from_time: datetime | None, to_time: datetime | None, filter_field: str, filter_value: str) -> None:
         """
         Reads and processes log entries from a specified file.
 
@@ -37,8 +38,8 @@ class FileLogReader(LogReader):
 
         Args:
             file_path (str): The path to the log file.
-            from_time (datetime): The starting time for filtering logs.
-            to_time (datetime): The ending time for filtering logs.
+            from_time (datetime | None): The starting time for filtering logs.
+            to_time (datetime | None): The ending time for filtering logs.
             filter_field (str): The field to apply filtering on (e.g., `agent`, `request`, `status`).
             filter_value (str): The value to match within the specified filter field.
         """
@@ -50,10 +51,29 @@ class FileLogReader(LogReader):
             with path.open("r", encoding="utf-8") as reader:
                 for line in reader:
                     nginx_log = parser.parse(line)
-                    after_from = (from_time is None) or (nginx_log.time_local >= from_time.replace(tzinfo=nginx_log.time_local.tzinfo))
-                    before_to = (to_time is None) or (nginx_log.time_local <= to_time.replace(tzinfo=nginx_log.time_local.tzinfo))
 
-                    if log_filter.matches_filter(nginx_log, filter_field, filter_value) and after_from and before_to:
+                    if (
+                        self.is_within_time_range(nginx_log, from_time, to_time)
+                        and log_filter.matches_filter(nginx_log, filter_field, filter_value)
+                    ):
                         self.analyzer.update_metrics(nginx_log)
         except IOError:
-            self.LOGGER.error(f"Error reading logs from file: {file_path}", exc_info=True)
+            LOGGER.error(f"Error reading logs from file: {file_path}", exc_info=True)
+
+    def is_within_time_range(self, nginx_log: NginxLog, from_time: datetime | None, to_time: datetime | None) -> bool:
+        """
+        Checks if the log entry falls within the specified time range.
+
+        Args:
+            nginx_log: The log entry object with a `time_local` field.
+            from_time (datetime | None): The starting time for filtering logs.
+            to_time (datetime | None): The ending time for filtering logs.
+
+        Returns:
+            bool: True if the log entry falls within the range, False otherwise.
+        """
+        if from_time and nginx_log.time_local < from_time.replace(tzinfo=nginx_log.time_local.tzinfo):
+            return False
+        if to_time and nginx_log.time_local > to_time.replace(tzinfo=nginx_log.time_local.tzinfo):
+            return False
+        return True
