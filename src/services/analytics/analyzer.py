@@ -7,6 +7,10 @@ from src.models.nginx_log import NginxLog
 from src.services.analytics.analyzer_intrerface import IAnalyzer
 
 
+MINERRORINDEX = 400
+MAXERRORINDEX = 600
+
+
 class Analyzer(IAnalyzer):
     """
     Class for analyzing log data and calculating various metrics.
@@ -55,7 +59,7 @@ class Analyzer(IAnalyzer):
 
         self.unique_ips.add(log.remote_addr)
 
-        if HTTPStatus(status_code).is_client_error or HTTPStatus(status_code).is_server_error:
+        if MINERRORINDEX <= status_code < MAXERRORINDEX:
             self.error_count += 1
 
         log_time = log.time_local
